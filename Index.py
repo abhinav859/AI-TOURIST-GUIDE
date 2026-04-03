@@ -39,9 +39,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 # Replace these strings with your actual API keys in a production environment.
 # For Streamlit deployment, it is highly recommended to use st.secrets instead.
-GEMINI_API_KEY: str = "YOUR_GEMINI_API_KEY"
-WEATHER_API_KEY: str = "YOUR_OPENWEATHER_API_KEY"
-ORS_API_KEY: str = "YOUR_OPENROUTESERVICE_API_KEY"
+GEMINI_API_KEY: str = "AIzaSyBu7JUdRXrzCxkZKZhs85CTuuK9yyOhYlk"
+WEATHER_API_KEY: str = "553a12892f87093cb1bb478cc9a67799"
+ORS_API_KEY: str = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImJiNWI1MDYxNzI2ZDQ0ZGI5ODRmYjI2Zjg0M2Y0NjgxIiwiaCI6Im11cm11cjY0In0="
 
 # Initialize the Gemini Large Language Model
 if GEMINI_API_KEY != "YOUR_GEMINI_API_KEY":
@@ -49,7 +49,7 @@ if GEMINI_API_KEY != "YOUR_GEMINI_API_KEY":
     genai.configure(api_key=GEMINI_API_KEY)
     
     # Instantiate the specific generative model we wish to use
-    llm_model: Optional[genai.GenerativeModel] = genai.GenerativeModel('gemini-1.5-flash')
+    llm_model: Optional[genai.GenerativeModel] = genai.GenerativeModel('gemini-2.5-flash')
 else:
     # Set to None to gracefully degrade functionality if no key is provided
     llm_model = None
@@ -530,18 +530,19 @@ with right_map_column:
             
             gem_name: str = gem_row['name']
             gem_category: str = gem_row['category']
-            gem_image_url: Any = gem_row.get('image_url', None)
+            gem_image_url: Any = gem_row.get('image_url')
             
             # Create an expanding accordion menu for each location
             with st.expander(label=f"💎 {gem_name} - {gem_category}"):
                 
-                # Split the accordion into image and text columns
-                image_column, details_column = st.columns([1, 2])
-                
-                with image_column:
-                    # Check if the image URL exists and is not a pandas NaN value
-                    if gem_image_url is not None and pd.notna(gem_image_url):
+                is_valid_image = pd.notna(gem_image_url) and str(gem_image_url).strip() != ""
+                if is_valid_image:
+                    # Split the accordion into image and text columns
+                    image_column, details_column = st.columns([1, 2])
+                    with image_column:
                         st.image(image=gem_image_url, use_container_width=True)
+                else:
+                    details_column = st.container()
                         
                 with details_column:
                     # Display metadata statistics
@@ -551,6 +552,9 @@ with right_map_column:
                     # Create a unique key for the button to prevent Streamlit rendering errors
                     button_key_identifier: str = f"btn_{gem_name}"
                     button_label: str = f"✨ Generate AI Road Trip to {gem_name}"
+                    
+                    # Manage state for this specific gem
+                    state_key = f"itinerary_{gem_name}"
                     
                     # Render the button and execute generation if clicked
                     if st.button(label=button_label, key=button_key_identifier):
@@ -564,5 +568,12 @@ with right_map_column:
                                 tags=gem_row['tags']
                             )
                             
-                            # Display the output to the user
-                            st.success(generated_itinerary)
+                            # Save to session state
+                            st.session_state[state_key] = generated_itinerary
+                            
+                    # If an itinerary exists in session state, show it
+                    if state_key in st.session_state:
+                        itinerary_text = st.session_state[state_key]
+                        
+                        # Display the output to the user
+                        st.success(itinerary_text)
